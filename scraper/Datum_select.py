@@ -10,7 +10,8 @@ month_map = {
 }
 
 class datum_check:
-    def marktplaats_datum(self, datum):
+    @staticmethod
+    def marktplaats_datum(datum):
         datum_text = datum.get_text(strip=True)
         if datum_text == 'Vandaag':
             datums = date.today()

@@ -2,9 +2,9 @@ import requests
 from bs4 import BeautifulSoup
 
 class prijzen_check:
-
+    @staticmethod
     def marktplaats_prijs(prijs, item):
-
+        
         prijs_raw = prijs.get_text(strip=True)
 
         prijs_value = None
@@ -26,6 +26,7 @@ class prijzen_check:
             prijs_clean = prijs_raw.replace('\xa0', ' ')
             prijs_clean = prijs_clean.replace('€ ', '')
             prijs_clean = prijs_clean.replace(',', '.')
+            prijs_clean = prijs_clean.replace('-', '00')
             prijs_value = float(prijs_clean)
             top_prijs = float(prijs_clean)
 
