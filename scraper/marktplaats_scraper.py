@@ -14,13 +14,18 @@ def martktplaats_scrape(search):
     response = requests.get(search_url)
     soup = BeautifulSoup(response.content, "html.parser")
 
+    #dit is voor het instellen van de pagina's of er 1 of meerderen zijn
     hoeveel = soup.find('span', attrs={'class': 'hz-PaginationControls-pagination-amountOfPages'})
-    hoeveel_tekst = hoeveel.get_text(strip=True).replace('Pagina 1 van ', '')
-    hoeveel_int = int(hoeveel_tekst)
+    if hoeveel:
+        hoeveel_tekst = hoeveel.get_text(strip=True).replace('Pagina 1 van ', '')
+        hoeveel_int = int(hoeveel_tekst)
+    else:
+        hoeveel_int = 1
 
     counter = 0
     index = 0
     
+    #de algemene loop door de pagina's heen
     while counter < hoeveel_int:
 
         page_url = search_url + f"?page={counter+1}"
@@ -29,6 +34,7 @@ def martktplaats_scrape(search):
 
         listings = soup.find_all('li', class_='hz-Listing')
 
+        #selecteer per pagina de wat er in gebeurt
         for item in listings:
             title = item.find('h3', attrs={'class':'hz-Listing-title'})
             prijs = item.find('span', attrs={'class':'hz-Listing-price'})
@@ -36,19 +42,37 @@ def martktplaats_scrape(search):
             website = item.find('a', attrs={'class': 'hz-TextLink'})
             mini_url = item.find('a', attrs={'class':'hz-Link'})
 
-            title_value, title_text = title_garantes().marktplaats_title(title, search)
+            #pakt de titel van de advertensie (pakt alleen wat er echt gevraagt word aan het systeem (dus ook niet wat er in de buurt van zit))
+            if title:
+                title_value, title_text = title_garantes().marktplaats_title(title, search)
+            else:
+                continue
 
+            # zonder title die matcht mag die niet verder (haalt random stuf er om heen weg)
             if title_value == True:
-                prijs_value, top_prijs = prijzen_check().marktplaats_prijs(prijs, item)
-                datums = datum_check().marktplaats_datum(datum)
+
+                #vraagt de prijs op (ook van bieden)
+                if prijs:
+                    prijs_value, top_prijs = prijzen_check().marktplaats_prijs(prijs, item)
+                else:
+                    prijs_value, top_prijs = None, None
+
+                #haalt de datums op van de advertentie
+                if datum:
+                    datums = datum_check().marktplaats_datum(datum)
+                else:
+                    continue
+
+                #laat zien of er een site aan gelinket staat (atm instabiel)
                 website_raw = bool(website)
 
-                if mini_url.has_attr("href"):
+                #geeft de link van de advertensie (ook instabiel atm)
+                if mini_url and mini_url.has_attr("href"):
                     listing_url = "https://www.marktplaats.nl" + mini_url["href"]
                 else:
                     listing_url = None
 
-                        
+                #update de dataframe met de nieuwe informatie
                 data[index] = {
                         'Naam':title_text,
                         'Prijs': prijs_value,

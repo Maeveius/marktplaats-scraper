@@ -10,6 +10,7 @@ class prijzen_check:
         prijs_value = None
         top_prijs = None
 
+        #zodra het 1 van de 2 is word de dataframe met none ingevult
         if prijs_raw in ['Zie omschrijving','Gereserveerd']:
             prijs_value = None
 
