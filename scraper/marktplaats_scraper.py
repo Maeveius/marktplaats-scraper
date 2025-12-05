@@ -2,9 +2,12 @@ import requests
 from bs4 import BeautifulSoup
 import numpy as np
 import pandas as pd
+
 from Title_garantee import title_garantes
 from prijsen_select import prijzen_check
 from Datum_select import datum_check
+from locatie_afstand import locatie
+from persoon_select import persoons
 
 data = {}
 info ={}
@@ -71,6 +74,13 @@ def martktplaats_scrape(search):
                     listing_url = "https://www.marktplaats.nl" + mini_url["href"]
                 else:
                     listing_url = None
+                
+                #geeft informatie over de locatie en de persoon zelf
+                if listing_url:
+                    locaties, afstand = locatie().area(listing_url)
+                    persoon, aantal_jaar, reviews = persoons().persoons_gegevens(listing_url)
+                else:
+                    locaties, afstand, persoon, aantal_jaar, reviews = None, None, None, None, None
 
                 #update de dataframe met de nieuwe informatie
                 data[index] = {
@@ -78,6 +88,11 @@ def martktplaats_scrape(search):
                         'Prijs': prijs_value,
                         'Bieden': top_prijs,
                         'Datum': datums,
+                        'Locatie':locaties,
+                        'Afstand':afstand,
+                        'Verkoper':persoon,
+                        'Vertrouwbaarheid':aantal_jaar,
+                        'reviews':reviews,
                         'Website': website_raw,
                         'url': listing_url}
                 
