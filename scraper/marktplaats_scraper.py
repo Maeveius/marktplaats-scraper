@@ -81,10 +81,10 @@ class Scrap:
                     
                     #geeft informatie over de locatie en de persoon zelf
                     if listing_url:
-                        locaties, afstand = locatie().area(listing_url)
+                        locaties = locatie().area(listing_url)
                         persoon, aantal_jaar, reviews = persoons().persoons_gegevens(listing_url)
                     else:
-                        locaties, afstand, persoon, aantal_jaar, reviews = None, None, None, None, None
+                        locaties, persoon, aantal_jaar, reviews = None, None, None, None
 
                     #update de dataframe met de nieuwe informatie
                     self.data[index] = {
@@ -93,7 +93,6 @@ class Scrap:
                             'Bieden': top_prijs,
                             'Datum': datums,
                             'Locatie':locaties,
-                            'Afstand':afstand,
                             'Verkoper':persoon,
                             'Vertrouwbaarheid':aantal_jaar,
                             'reviews':reviews,

@@ -8,14 +8,17 @@ class persoons:
             response = requests.get(site)
             soup = BeautifulSoup(response.content, "html.parser")
 
-            naam = soup.find('a', href=f'#verkoper')
-            naam = naam.get_text(strip=True) if naam else None
+            naam_tag = soup.find('a', href=f'#verkoper')
+            naam = naam_tag.get_text(strip=True) if naam_tag else None
 
-            jaar = soup.find('div', class_='SellerInfoSmall-row')
-            jaar = jaar.get_text(strip=True) if jaar else None
+            jaar_tag = soup.find('div', class_='TextEllipsis')
+            jaar = jaar_tag.get_text(strip=True) if jaar_tag else None
+            jaar = jaar.replace(' op Marktplaats', '')
 
-            review_raw = soup.find('span', class_='hz-StarRating-number')
-            review_raw = review_raw.get_text(strip=True) if review_raw else None
+            review_raw_tag = soup.find('span', class_='hz-Text--bodyLargeStrong')
+            review_raw = review_raw_tag.get_text(strip=True) if review_raw_tag else None
+            if review_raw is not None:
+                review_raw = review_raw.replace(' · ', '')
 
             # betrouwbaarheid
             if jaar:
