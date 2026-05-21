@@ -22,7 +22,7 @@ class Scrap:
         soup = BeautifulSoup(response.content, "html.parser")
 
         #dit is voor het instellen van de pagina's of er 1 of meerderen zijn
-        hoeveel = soup.find('span', attrs={'class': 'hz-PaginationControls-pagination-amountOfPages'})
+        hoeveel = soup.find('span', class_ = 'hz-PaginationControls-pagination-amountOfPages')
         if hoeveel:
             hoeveel_tekst = hoeveel.get_text(strip=True).replace('Pagina 1 van ', '')
             hoeveel_int = int(hoeveel_tekst)
@@ -43,11 +43,13 @@ class Scrap:
 
             #selecteer per pagina de wat er in gebeurt
             for item in listings:
-                title = item.find('h3', attrs={'class':'hz-Listing-title'})
-                prijs = item.find('span', attrs={'class':'hz-Listing-price'})
-                datum = item.find('span', attrs={'class':'hz-Listing-date'})
-                website = item.find('a', attrs={'class': 'hz-TextLink'})
-                mini_url = item.find('a', attrs={'class':'hz-Link'})
+                title = item.find('h3', class_='hz-Listing-title')
+                prijs = item.find('span', class_ = 'hz-Listing-price')
+                datum = item.find('span', class_='hz-Listing-date')
+                website = item.find('a', data= 'hz-TextLink')
+                mini_url = item.find('a', href=True)
+                
+
 
                 #pakt de titel van de advertensie (pakt alleen wat er echt gevraagt word aan het systeem (dus ook niet wat er in de buurt van zit))
                 if title:
@@ -74,8 +76,16 @@ class Scrap:
                     website_raw = bool(website)
 
                     #geeft de link van de advertensie (ook instabiel atm)
-                    if mini_url and mini_url.has_attr("href"):
-                        listing_url = "https://www.marktplaats.nl" + mini_url["href"]
+                    
+                    if mini_url:
+                        href = mini_url.get("href")
+                        if href:
+                            if href.startswith("/"):
+                                listing_url = "https://www.marktplaats.nl" + href
+                            else:
+                                listing_url = href
+                        else:
+                            listing_url = None
                     else:
                         listing_url = None
                     
