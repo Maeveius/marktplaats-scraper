@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import numpy as np
 import pandas as pd
+import json
 
 from .Title_garantee import title_garantes
 from .prijsen_select import prijzen_check
@@ -9,111 +10,83 @@ from .Datum_select import datum_check
 from .locatie_afstand import locatie
 from .persoon_select import persoons
 
+HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+
 class Scrap:
     def __init__(self):
         self.data = {}
 
-    data = {}
     def martktplaats_scrape(self, search):
-
-        
         search_url = f'https://www.marktplaats.nl/q/{search}'
-        response = requests.get(search_url)
+        response = requests.get(search_url, headers=HEADERS)
         soup = BeautifulSoup(response.content, "html.parser")
 
-        #dit is voor het instellen van de pagina's of er 1 of meerderen zijn
-        hoeveel = soup.find('span', class_ = 'hz-PaginationControls-pagination-amountOfPages')
-        if hoeveel:
-            hoeveel_tekst = hoeveel.get_text(strip=True).replace('Pagina 1 van ', '')
-            hoeveel_int = int(hoeveel_tekst)
-        else:
-            hoeveel_int = 1
+        # paginering uit JSON halen
+        script = soup.find('script', id='__NEXT_DATA__')
+        json_data = json.loads(script.string)
+        hoeveel_int = json_data['props']['pageProps']['searchRequestAndResponse']['maxAllowedPageNumber']
 
         counter = 0
         index = 0
-        
-        #de algemene loop door de pagina's heen
-        while counter < hoeveel_int:
 
-            page_url = search_url + f"?page={counter+1}"
-            response = requests.get(page_url)
+        while counter < hoeveel_int:
+            page_url = search_url + f'/p/{counter+1}/'
+            response = requests.get(page_url, headers=HEADERS)
             soup = BeautifulSoup(response.content, "html.parser")
 
-            listings = soup.find_all('li', class_='hz-Listing')
+            # listings uit JSON halen in plaats van HTML
+            script = soup.find('script', id='__NEXT_DATA__')
+            json_data = json.loads(script.string)
+            listings = json_data['props']['pageProps']['searchRequestAndResponse']['listings']
+            print(f"Gevonden listings op pagina {counter+1}: {len(listings)}")
 
-            #selecteer per pagina de wat er in gebeurt
             for item in listings:
-                title = item.find('h3', class_='hz-Listing-title')
-                prijs = item.find('span', class_ = 'hz-Listing-price')
-                datum = item.find('span', class_='hz-Listing-date')
-                website = item.find('a', data= 'hz-TextLink')
-                mini_url = item.find('a', href=True)
-                
+                title_text = item.get('title', '')
+                title_value, title_text = title_garantes().marktplaats_title_text(title_text, search)
 
+                if title_value:
+                    price_info = item.get('priceInfo', {})
+                    price_type = price_info.get('priceType', '')
+                    price_cents = price_info.get('priceCents', 0)
 
-                #pakt de titel van de advertensie (pakt alleen wat er echt gevraagt word aan het systeem (dus ook niet wat er in de buurt van zit))
-                if title:
-                    title_value, title_text = title_garantes().marktplaats_title(title, search)
-                else:
-                    continue
-
-                # zonder title die matcht mag die niet verder (haalt random stuf er om heen weg)
-                if title_value == True:
-
-                    #vraagt de prijs op (ook van bieden)
-                    if prijs:
-                        prijs_value, top_prijs = prijzen_check().marktplaats_prijs(prijs, item)
+                    if price_type == 'FIXED':
+                        prijs_value = price_cents / 100
+                        top_prijs = prijs_value
+                    elif price_type == 'MIN_BID':
+                        prijs_value = None
+                        top_prijs = price_cents / 100
                     else:
                         prijs_value, top_prijs = None, None
 
-                    #haalt de datums op van de advertentie
-                    if datum:
-                        datums = datum_check().marktplaats_datum(datum)
-                    else:
-                        continue
+                    try:
+                        datums = datum_check().marktplaats_datum_text(item.get('date'))
+                    except:
+                        datums = None
 
-                    #laat zien of er een site aan gelinket staat (atm instabiel)
-                    website_raw = bool(website)
+                    vip_url = item.get('vipUrl', None)
+                    listing_url = f"https://www.marktplaats.nl{vip_url}" if vip_url else None
+                    website_raw = item.get('sellerInformation', {}).get('showWebsiteUrl', False)
 
-                    #geeft de link van de advertensie (ook instabiel atm)
-                    
-                    if mini_url:
-                        href = mini_url.get("href")
-                        if href:
-                            if href.startswith("/"):
-                                listing_url = "https://www.marktplaats.nl" + href
-                            else:
-                                listing_url = href
-                        else:
-                            listing_url = None
-                    else:
-                        listing_url = None
-                    
-                    #geeft informatie over de locatie en de persoon zelf
                     if listing_url:
                         locaties = locatie().area(listing_url)
                         persoon, aantal_jaar, reviews = persoons().persoons_gegevens(listing_url)
                     else:
                         locaties, persoon, aantal_jaar, reviews = None, None, None, None
 
-                    #update de dataframe met de nieuwe informatie
                     self.data[index] = {
-                            'Naam':title_text,
-                            'Prijs': prijs_value,
-                            'Bieden': top_prijs,
-                            'Datum': datums,
-                            'Locatie':locaties,
-                            'Verkoper':persoon,
-                            'Vertrouwbaarheid':aantal_jaar,
-                            'reviews':reviews,
-                            'Website': website_raw,
-                            'url': listing_url}
-                    
-                else:
-                    continue
-                
-                index += 1
+                        'Naam': title_text,
+                        'Prijs': prijs_value,
+                        'Bieden': top_prijs,
+                        'Datum': datums,
+                        'Locatie': locaties,
+                        'Verkoper': persoon,
+                        'Vertrouwbaarheid': aantal_jaar,
+                        'reviews': reviews,
+                        'Website': website_raw,
+                        'url': listing_url
+                    }
+                    index += 1
 
             counter += 1
-        return self.data
 
+        return self.data
